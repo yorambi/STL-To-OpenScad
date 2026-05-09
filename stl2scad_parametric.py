@@ -46,7 +46,7 @@ import math
 import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable, Optional
+from typing import Any, Iterable, Optional
 
 import numpy as np
 
@@ -1435,9 +1435,45 @@ def polyhedron(mesh: "trimesh.Trimesh") -> Detection:
 # Detection pipeline
 # ---------------------------------------------------------------------------
 
+_NAMED_DETECTORS: dict[str, Any] = {}  # populated after all detector functions are defined
+
+
+def _build_named_detectors() -> None:
+    _NAMED_DETECTORS.update({
+        "axis_aligned_box": axis_aligned_box,
+        "oriented_bounding_box": oriented_bounding_box,
+        "vertical_cylinder": vertical_cylinder,
+        "pca_oriented_cylinder": pca_oriented_cylinder,
+        "pca_oriented_frustum": pca_oriented_frustum,
+        "regular_polygon_prism": regular_polygon_prism,
+        "sphere": sphere,
+        "rotational_extrusion": rotational_extrusion,
+        "extruded_profile": extruded_profile,
+        "visual_hull_silhouette": visual_hull_silhouette,
+        "silhouette_extrusion": silhouette_extrusion,
+        "box_with_holes": box_with_holes,
+        "cylindrical_shell": cylindrical_shell_difference,
+        "multi_primitive_union": multi_primitive_union,
+        "polyhedron": None,
+    })
+
+
 def detect(mesh: "trimesh.Trimesh", strategy: str, tolerance: float, aggressive: bool = False) -> Detection:
+    if not _NAMED_DETECTORS:
+        _build_named_detectors()
+
     if strategy == "polyhedron":
         return polyhedron(mesh)
+
+    # Named detector: run only that one detector, fall back to polyhedron if it fails
+    if strategy in _NAMED_DETECTORS and strategy not in ("auto", "primitive"):
+        fn = _NAMED_DETECTORS[strategy]
+        result = fn(mesh, tolerance) if fn is not None else None
+        if result is not None:
+            return result
+        fb = polyhedron(mesh)
+        fb.notes.insert(0, f"Detector '{strategy}' did not match; falling back to polyhedron.")
+        return fb
 
     detector_tolerance = tolerance * (4.0 if aggressive else 1.0)
 
@@ -1529,11 +1565,26 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     )
     parser.add_argument("input", type=Path, help="Input STL file")
     parser.add_argument("-o", "--output", type=Path, help="Output .scad file")
+    _VALID_STRATEGIES = (
+        "auto", "primitive", "polyhedron",
+        "axis_aligned_box", "oriented_bounding_box", "vertical_cylinder",
+        "pca_oriented_cylinder", "pca_oriented_frustum", "regular_polygon_prism",
+        "sphere", "rotational_extrusion", "extruded_profile",
+        "visual_hull_silhouette", "silhouette_extrusion",
+        "box_with_holes", "cylindrical_shell", "multi_primitive_union",
+    )
     parser.add_argument(
         "--strategy",
-        choices=("auto", "primitive", "polyhedron"),
+        choices=_VALID_STRATEGIES,
         default="auto",
-        help="Conversion strategy",
+        metavar="STRATEGY",
+        help=(
+            "Conversion strategy. 'auto' tries all detectors and picks the best. "
+            "'primitive' returns the best detector result regardless of confidence. "
+            "'polyhedron' always emits a raw polyhedron(). "
+            "Any detector name forces only that detector. "
+            f"Valid names: {', '.join(_VALID_STRATEGIES)}"
+        ),
     )
     parser.add_argument(
         "--tolerance",

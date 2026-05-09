@@ -30,15 +30,48 @@ pip install -e ".[dev]"
 ## Usage
 
 ```bash
-# single file
+# single file (auto-detects shape)
 python stl2scad_parametric.py part.stl
 
-# write to file
+# write to a specific output file
 python stl2scad_parametric.py part.stl -o part.scad
 
-# force a specific strategy
-python stl2scad_parametric.py part.stl --strategy oriented_bounding_box_approximation
+# force a specific detector
+python stl2scad_parametric.py part.stl --strategy oriented_bounding_box
+python stl2scad_parametric.py part.stl --strategy pca_oriented_frustum
+python stl2scad_parametric.py part.stl --strategy cylindrical_shell
+
+# always emit a raw polyhedron() (no detection)
+python stl2scad_parametric.py part.stl --strategy polyhedron
+
+# loosen thresholds for tricky meshes
+python stl2scad_parametric.py part.stl --aggressive
+
+# print mesh diagnostics
+python stl2scad_parametric.py part.stl --diagnose
 ```
+
+### Available `--strategy` values
+
+| Value | Behaviour |
+|---|---|
+| `auto` *(default)* | Try all detectors, return best match above confidence threshold |
+| `primitive` | Return best detector result regardless of confidence |
+| `polyhedron` | Always emit raw `polyhedron()`, no detection |
+| `axis_aligned_box` | Force axis-aligned box detector |
+| `oriented_bounding_box` | Force oriented bounding-box approximation |
+| `vertical_cylinder` | Force Z-axis cylinder detector |
+| `pca_oriented_cylinder` | Force PCA cylinder detector |
+| `pca_oriented_frustum` | Force truncated-cone detector |
+| `regular_polygon_prism` | Force polygon prism detector (n=3–8) |
+| `sphere` | Force sphere detector |
+| `rotational_extrusion` | Force rotate_extrude() detector |
+| `extruded_profile` | Force Z-extrusion detector |
+| `visual_hull_silhouette` | Force 3-axis visual-hull approximation |
+| `silhouette_extrusion` | Force single-axis silhouette extrusion |
+| `box_with_holes` | Force box-with-cylindrical-holes detector |
+| `cylindrical_shell` | Force cylindrical shell (difference) detector |
+| `multi_primitive_union` | Force multi-body union detector |
 
 ## Running the tests
 
