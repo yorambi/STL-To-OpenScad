@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.backends.legacy:build"
+
+[project]
+name = "stl2scad"
+version = "0.1.0"
+description = "Convert STL meshes to parametric OpenSCAD scripts"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "trimesh>=4.0",
+    "numpy>=1.24",
+    "scipy>=1.10",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=7", "pytest-cov"]
+
+[project.scripts]
+stl2scad = "stl2scad_parametric:main"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
